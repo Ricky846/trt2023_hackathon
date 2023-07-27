@@ -59,7 +59,7 @@ if not os.path.isfile("clip.onnx"):
         dynamic_axes=dynamic_axes)
 
 if not os.path.isfile("clip.engine"):
-    os.system("trtexec --onnx=clip.onnx --saveEngine=clip.engine --optShapes=input_ids:1x77")
+    os.system("trtexec --onnx=clip.onnx --saveEngine=clip.engine --fp16 --optShapes=input_ids:1x77")
 
 # 导出 controlnet 为 onnx 文件
 if not os.path.isfile("controlnet.onnx"):
@@ -94,7 +94,7 @@ if not os.path.isfile("controlnet.onnx"):
                         output_names = output_names, 
                         dynamic_axes = dynamic_table)
 if not os.path.isfile("controlnet.engine"):
-    os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
+    os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
 
 # 导出 unet 为 onnx文件
 if not os.path.isfile("unet.onnx"):
@@ -164,7 +164,7 @@ if not os.path.isfile("vae.onnx"):
                         opset_version=17,
                         do_constant_folding=True,)
 if not os.path.isfile("vae.engine"):
-    os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine")
+    os.system("trtexec --onnx=vae.onnx --fp16 --saveEngine=vae.engine")
 
 print('finish')
 
