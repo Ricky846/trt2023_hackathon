@@ -68,7 +68,7 @@ if not os.path.isfile("controlnet.onnx"):
 
     x_in = torch.randn(1, 4, H//8, W //8, dtype=torch.float32).to("cuda")
     h_in = torch.randn(1, 3, H, W, dtype=torch.float32).to("cuda")
-    t_in = torch.zeros(1, dtype=torch.int64).to("cuda")
+    t_in = torch.zeros(1, dtype=torch.int32).to("cuda")
     c_in = torch.randn(1, 77, 768, dtype=torch.float32).to("cuda")
 
     output_names = []
@@ -99,7 +99,7 @@ if not os.path.isfile("controlnet.engine"):
 # 导出 unet 为 onnx文件
 if not os.path.isfile("unet.onnx"):
     diffusion_model_input1 = torch.zeros((1,4,32,48)).to("cuda")
-    diffusion_model_input2 = torch.zeros(1, dtype=torch.int64).to("cuda")
+    diffusion_model_input2 = torch.zeros(1, dtype=torch.int32).to("cuda")
     diffusion_model_input3 = torch.zeros((1,77,768)).to("cuda")
 
     diffusion_model_input4_1 = torch.zeros((1, 320, 32, 48)).to("cuda")
