@@ -27,17 +27,16 @@ class model_engine():
 class hackathon():
 
     def initialize(self):
+        os.system("sed -i 's/use_checkpoint: True/use_checkpoint: False/g' '/home/player/ControlNet/models/cldm_v15.yaml'")
+
         self.apply_canny = CannyDetector()
         self.model = create_model('/home/player/ControlNet/models/cldm_v15.yaml').cpu()
         self.model.load_state_dict(load_state_dict('/home/player/ControlNet/models/control_sd15_canny.pth', location='cuda'))
         self.model = self.model.cuda()
         self.ddim_sampler = DDIMSampler(self.model)
 
-        os.system("sed -i 's/use_checkpoint: True/use_checkpoint: False/g' '/home/player/ControlNet/models/cldm_v15.yaml'")
-        
         self.trt_logger = trt.Logger(trt.Logger.WARNING)
         trt.init_libnvinfer_plugins(self.trt_logger, '')
-
 
         H = 256
         W = 384

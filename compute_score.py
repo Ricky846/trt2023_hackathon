@@ -5,9 +5,6 @@ import cv2
 import datetime
 from canny2image_TRT import hackathon
 
-import os
-os.system("sed -i 's/use_checkpoint: True/use_checkpoint: False/g' '/home/player/ControlNet/models/cldm_v15.yaml'")
-
 block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[2048]
 model = InceptionV3([block_idx]).to("cuda")
 
