@@ -33,6 +33,7 @@ class hackathon():
         self.model = self.model.cuda()
         self.ddim_sampler = DDIMSampler(self.model)
 
+        os.system("sed -i 's/use_checkpoint: True/use_checkpoint: False/g' '/home/player/ControlNet/models/cldm_v15.yaml'")
         self.trt_logger = trt.Logger(trt.Logger.WARNING)
         trt.init_libnvinfer_plugins(self.trt_logger, '')
 
