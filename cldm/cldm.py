@@ -2,12 +2,14 @@ import einops
 import torch
 import torch as th
 import torch.nn as nn
+
 from ldm.modules.diffusionmodules.util import (
     conv_nd,
     linear,
     zero_module,
     timestep_embedding,
 )
+
 from einops import rearrange, repeat
 from torchvision.utils import make_grid
 from ldm.modules.attention import SpatialTransformer
@@ -15,6 +17,17 @@ from ldm.modules.diffusionmodules.openaimodel import UNetModel, TimestepEmbedSeq
 from ldm.models.diffusion.ddpm import LatentDiffusion
 from ldm.util import log_txt_as_img, exists, instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
+
+# import types
+# def forward(self, input_ids: torch.Tensor):
+#     outputs = self.transformer(
+#         input_ids=input_ids,
+#         output_hidden_states=bool(self.layer=="hidden")
+#     )
+#     return outputs.last_hidden_state
+# self.model.forward = types.MethodType(forward, self.model)
+
+
 class ControlledUnetModel(UNetModel):
     def forward(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
         hs = []
@@ -22,20 +35,28 @@ class ControlledUnetModel(UNetModel):
             t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
             emb = self.time_embed(t_emb)
             h = x.type(self.dtype)
+            # print(type(self.input_blocks))
             for module in self.input_blocks:
                 h = module(h, emb, context)
                 hs.append(h)
+            # unet 输入 h shape : [1, 1280, 4, 6] , emb shape : [1, 1280] , context : [1, 77, 768]
             h = self.middle_block(h, emb, context)
+            # 输出 h shape ： [1, 1280, 4, 6]
+
         if control is not None:
             h += control.pop()
+
         for i, module in enumerate(self.output_blocks):
             if only_mid_control or control is None:
                 h = torch.cat([h, hs.pop()], dim=1)
             else:
                 h = torch.cat([h, hs.pop() + control.pop()], dim=1)
             h = module(h, emb, context)
+
         h = h.type(x.dtype)
         return self.out(h)
+
+
 class ControlNet(nn.Module):
     def __init__(
             self,
@@ -70,17 +91,22 @@ class ControlNet(nn.Module):
         super().__init__()
         if use_spatial_transformer:
             assert context_dim is not None, 'Fool!! You forgot to include the dimension of your cross-attention conditioning...'
+
         if context_dim is not None:
             assert use_spatial_transformer, 'Fool!! You forgot to use the spatial transformer for your cross-attention conditioning...'
             from omegaconf.listconfig import ListConfig
             if type(context_dim) == ListConfig:
                 context_dim = list(context_dim)
+
         if num_heads_upsample == -1:
             num_heads_upsample = num_heads
+
         if num_heads == -1:
             assert num_head_channels != -1, 'Either num_heads or num_head_channels has to be set'
+
         if num_head_channels == -1:
             assert num_heads != -1, 'Either num_heads or num_head_channels has to be set'
+
         self.dims = dims
         self.image_size = image_size
         self.in_channels = in_channels
@@ -102,6 +128,7 @@ class ControlNet(nn.Module):
                   f"This option has LESS priority than attention_resolutions {attention_resolutions}, "
                   f"i.e., in cases where num_attention_blocks[i] > 0 but 2**i not in attention_resolutions, "
                   f"attention will still not be set.")
+
         self.attention_resolutions = attention_resolutions
         self.dropout = dropout
         self.channel_mult = channel_mult
@@ -112,12 +139,14 @@ class ControlNet(nn.Module):
         self.num_head_channels = num_head_channels
         self.num_heads_upsample = num_heads_upsample
         self.predict_codebook_ids = n_embed is not None
+
         time_embed_dim = model_channels * 4
         self.time_embed = nn.Sequential(
             linear(model_channels, time_embed_dim),
             nn.SiLU(),
             linear(time_embed_dim, time_embed_dim),
         )
+
         self.input_blocks = nn.ModuleList(
             [
                 TimestepEmbedSequential(
@@ -126,6 +155,7 @@ class ControlNet(nn.Module):
             ]
         )
         self.zero_convs = nn.ModuleList([self.make_zero_conv(model_channels)])
+
         self.input_hint_block = TimestepEmbedSequential(
             conv_nd(dims, hint_channels, 16, 3, padding=1),
             nn.SiLU(),
@@ -143,6 +173,7 @@ class ControlNet(nn.Module):
             nn.SiLU(),
             zero_module(conv_nd(dims, 256, model_channels, 3, padding=1))
         )
+
         self._feature_size = model_channels
         input_block_chans = [model_channels]
         ch = model_channels
@@ -174,6 +205,7 @@ class ControlNet(nn.Module):
                         disabled_sa = disable_self_attentions[level]
                     else:
                         disabled_sa = False
+
                     if not exists(num_attention_blocks) or nr < num_attention_blocks[level]:
                         layers.append(
                             AttentionBlock(
@@ -217,6 +249,7 @@ class ControlNet(nn.Module):
                 self.zero_convs.append(self.make_zero_conv(ch))
                 ds *= 2
                 self._feature_size += ch
+
         if num_head_channels == -1:
             dim_head = ch // num_heads
         else:
@@ -256,13 +289,18 @@ class ControlNet(nn.Module):
         )
         self.middle_block_out = self.make_zero_conv(ch)
         self._feature_size += ch
+
     def make_zero_conv(self, channels):
         return TimestepEmbedSequential(zero_module(conv_nd(self.dims, channels, channels, 1, padding=0)))
+
     def forward(self, x, hint, timesteps, context, **kwargs):
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
+
         guided_hint = self.input_hint_block(hint, emb, context)
+
         outs = []
+
         h = x.type(self.dtype)
         for module, zero_conv in zip(self.input_blocks, self.zero_convs):
             if guided_hint is not None:
@@ -272,16 +310,22 @@ class ControlNet(nn.Module):
             else:
                 h = module(h, emb, context)
             outs.append(zero_conv(h, emb, context))
+
         h = self.middle_block(h, emb, context)
         outs.append(self.middle_block_out(h, emb, context))
+
         return outs
+
+
 class ControlLDM(LatentDiffusion):
+
     def __init__(self, control_stage_config, control_key, only_mid_control, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.control_model = instantiate_from_config(control_stage_config)
         self.control_key = control_key
         self.only_mid_control = only_mid_control
         self.control_scales = [1.0] * 13
+
     @torch.no_grad()
     def get_input(self, batch, k, bs=None, *args, **kwargs):
         x, c = super().get_input(batch, self.first_stage_key, *args, **kwargs)
@@ -292,63 +336,49 @@ class ControlLDM(LatentDiffusion):
         control = einops.rearrange(control, 'b h w c -> b c h w')
         control = control.to(memory_format=torch.contiguous_format).float()
         return x, dict(c_crossattn=[c], c_concat=[control])
+
     def apply_model(self, x_noisy, t, cond, *args, **kwargs):
         assert isinstance(cond, dict)
         diffusion_model = self.model.diffusion_model
+
         cond_txt = torch.cat(cond['c_crossattn'], 1)
+
         if cond['c_concat'] is None:
             eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=None, only_mid_control=self.only_mid_control)
         else:
+            # control_net 四个输入 ： float32[1,4,32,48], float32[1,3,256,384], int64[1], float32[1,77,768]
+            # name: onnx::Cast_0
+            # type: float32[1,4,32,48]
+            # name: input.3
+            # type: float32[1,3,256,384]
+            # name: timesteps
+            # type: int64[1]
+            # name: onnx::MatMul_3
+            # type: float32[1,77,768]
+            input_tensor_list = [x_noisy, torch.cat(cond['c_concat'], 1), t, cond_txt]
+            engine_outputs = self.run_engine(self.controlnet_engine, input_tensor_list)
+            # engine_outputs = [torch.tensor(arr).cuda() for arr in engine_outputs]
             # control = self.control_model(x=x_noisy, hint=torch.cat(cond['c_concat'], 1), timesteps=t, context=cond_txt)
-            hint_in = torch.cat(cond['c_concat'], 1)
+            # control = [c * scale for c, scale in zip(control, self.control_scales)]
+            engine_outputs = [c * scale for c, scale in zip(engine_outputs, self.control_scales)]
+            # engine_outputs_copy = engine_outputs[:]
+            # print(t)
+            # eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=engine_outputs, only_mid_control=self.only_mid_control)
+            input_tensor_list = [x_noisy, t, cond_txt]
+            for tensor in engine_outputs:
+                # print(tensor.shape)
+                input_tensor_list.append(tensor)
+            engine_outputs = self.run_engine(self.unet_engine, input_tensor_list)
+            # print(engine_outputs[0])
+            engine_outputs = engine_outputs[0]
+            # eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=engine_outputs, only_mid_control=self.only_mid_control)
 
-            b, c, h, w = x_noisy.shape
+        return engine_outputs
 
-            buffer_device = []
-            buffer_device.append(x_noisy.reshape(-1).data_ptr())
-            buffer_device.append(hint_in.reshape(-1).data_ptr())
-            buffer_device.append(t.reshape(-1).data_ptr())
-            buffer_device.append(cond_txt.reshape(-1).data_ptr())
-
-            control_out = []
-
-            for i in range(3):
-                temp = torch.zeros(b, 320, h, w, dtype=torch.float32).to("cuda")
-                control_out.append(temp)
-                buffer_device.append(temp.reshape(-1).data_ptr())
-
-            temp = torch.zeros(b, 320, h//2, w//2, dtype=torch.float32).to("cuda")
-            control_out.append(temp)
-            buffer_device.append(temp.reshape(-1).data_ptr())
-
-            for i in range(2):
-                temp = torch.zeros(b, 640, h//2, w//2, dtype=torch.float32).to("cuda")
-                control_out.append(temp)
-                buffer_device.append(temp.reshape(-1).data_ptr())
-
-            temp = torch.zeros(b, 640, h//4, w//4, dtype=torch.float32).to("cuda")
-            control_out.append(temp)
-            buffer_device.append(temp.reshape(-1).data_ptr())
-
-            for i in range(2):
-                temp = torch.zeros(b, 1280, h//4, w//4, dtype=torch.float32).to("cuda")
-                control_out.append(temp)
-                buffer_device.append(temp.reshape(-1).data_ptr())
-
-            for i in range(4):
-                temp = torch.zeros(b, 1280, h//8, w//8, dtype=torch.float32).to("cuda")
-                control_out.append(temp)
-                buffer_device.append(temp.reshape(-1).data_ptr())
-
-            self.control_context.execute_v2(buffer_device)
-
-            control = [c * scale for c, scale in zip(control_out, self.control_scales)]
-            eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=control, only_mid_control=self.only_mid_control)
-
-        return eps
     @torch.no_grad()
     def get_unconditional_conditioning(self, N):
         return self.get_learned_conditioning([""] * N)
+
     @torch.no_grad()
     def log_images(self, batch, N=4, n_row=2, sample=False, ddim_steps=50, ddim_eta=0.0, return_keys=None,
                    quantize_denoised=True, inpaint=True, plot_denoise_rows=False, plot_progressive_rows=True,
@@ -356,6 +386,7 @@ class ControlLDM(LatentDiffusion):
                    use_ema_scope=True,
                    **kwargs):
         use_ddim = ddim_steps is not None
+
         log = dict()
         z, c = self.get_input(batch, self.first_stage_key, bs=N)
         c_cat, c = c["c_concat"][0][:N], c["c_crossattn"][0][:N]
@@ -364,6 +395,7 @@ class ControlLDM(LatentDiffusion):
         log["reconstruction"] = self.decode_first_stage(z)
         log["control"] = c_cat * 2.0 - 1.0
         log["conditioning"] = log_txt_as_img((512, 512), batch[self.cond_stage_key], size=16)
+
         if plot_diffusion_rows:
             # get diffusion row
             diffusion_row = list()
@@ -375,11 +407,13 @@ class ControlLDM(LatentDiffusion):
                     noise = torch.randn_like(z_start)
                     z_noisy = self.q_sample(x_start=z_start, t=t, noise=noise)
                     diffusion_row.append(self.decode_first_stage(z_noisy))
+
             diffusion_row = torch.stack(diffusion_row)  # n_log_step, n_row, C, H, W
             diffusion_grid = rearrange(diffusion_row, 'n b c h w -> b n c h w')
             diffusion_grid = rearrange(diffusion_grid, 'b n c h w -> (b n) c h w')
             diffusion_grid = make_grid(diffusion_grid, nrow=diffusion_row.shape[0])
             log["diffusion_row"] = diffusion_grid
+
         if sample:
             # get denoise row
             samples, z_denoise_row = self.sample_log(cond={"c_concat": [c_cat], "c_crossattn": [c]},
@@ -390,6 +424,7 @@ class ControlLDM(LatentDiffusion):
             if plot_denoise_rows:
                 denoise_grid = self._get_denoise_row_from_list(z_denoise_row)
                 log["denoise_row"] = denoise_grid
+
         if unconditional_guidance_scale > 1.0:
             uc_cross = self.get_unconditional_conditioning(N)
             uc_cat = c_cat  # torch.zeros_like(c_cat)
@@ -402,7 +437,9 @@ class ControlLDM(LatentDiffusion):
                                              )
             x_samples_cfg = self.decode_first_stage(samples_cfg)
             log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"] = x_samples_cfg
+
         return log
+
     @torch.no_grad()
     def sample_log(self, cond, batch_size, ddim, ddim_steps, **kwargs):
         ddim_sampler = DDIMSampler(self)
@@ -410,6 +447,7 @@ class ControlLDM(LatentDiffusion):
         shape = (self.channels, h // 8, w // 8)
         samples, intermediates = ddim_sampler.sample(ddim_steps, batch_size, shape, cond, verbose=False, **kwargs)
         return samples, intermediates
+
     def configure_optimizers(self):
         lr = self.learning_rate
         params = list(self.control_model.parameters())
@@ -418,6 +456,7 @@ class ControlLDM(LatentDiffusion):
             params += list(self.model.diffusion_model.out.parameters())
         opt = torch.optim.AdamW(params, lr=lr)
         return opt
+
     def low_vram_shift(self, is_diffusing):
         if is_diffusing:
             self.model = self.model.cuda()

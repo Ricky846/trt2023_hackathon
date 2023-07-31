@@ -1,6 +1,5 @@
 from share import *
 import config
-import os
 
 import cv2
 import einops
@@ -18,6 +17,16 @@ from cldm.ddim_hacked import DDIMSampler
 import tensorrt as trt
 from cuda import cudart
 
+import os
+
+torch_dtype = {
+    trt.DataType.FLOAT: torch.float32,
+    trt.DataType.HALF: torch.float16,
+    trt.DataType.INT8: torch.int8,
+    trt.DataType.INT32: torch.int32,
+    trt.DataType.BOOL: torch.bool
+}
+
 class model_engine():
     def __init__(self, context, input_tensor, output_tensor):
         self.context = context
@@ -30,81 +39,43 @@ class hackathon():
         os.system("sed -i 's/use_checkpoint: True/use_checkpoint: False/g' '/home/player/ControlNet/models/cldm_v15.yaml'")
 
         self.apply_canny = CannyDetector()
-        self.model = create_model('/home/player/ControlNet/models/cldm_v15.yaml').cpu()
-        self.model.load_state_dict(load_state_dict('/home/player/ControlNet/models/control_sd15_canny.pth', location='cuda'))
+        self.model = create_model('./models/cldm_v15.yaml').cpu()
+        self.model.load_state_dict(load_state_dict('./models/control_sd15_canny.pth', location='cuda'))
         self.model = self.model.cuda()
         self.ddim_sampler = DDIMSampler(self.model)
+        
+        if(os.path.isfile("clip.engine") and os.path.isfile("controlnet.engine") and os.path.isfile("unet.engine") and os.path.isfile("vae.engine")):
+            # trt 初始化
+            self.trt_logger = trt.Logger(trt.Logger.WARNING)
+            # 加载plugin
+            trt.init_libnvinfer_plugins(self.trt_logger, '')
 
-        self.trt_logger = trt.Logger(trt.Logger.WARNING)
-        trt.init_libnvinfer_plugins(self.trt_logger, '')
+            self.model.cond_stage_model.run_engine = self.run_engine
+            self.model.run_engine = self.run_engine
+            # self.model.decode_first_stage.run_engine = self.run_engine
 
-        H = 256
-        W = 384
-
-        control_model = self.model.control_model
-        if not os.path.isfile("sd_control_fp16.engine"):
-            x_in = torch.randn(1, 4, H//8, W //8, dtype=torch.float32).to("cuda")
-            h_in = torch.randn(1, 3, H, W, dtype=torch.float32).to("cuda")
-            t_in = torch.zeros(1, dtype=torch.int64).to("cuda")
-            c_in = torch.randn(1, 77, 768, dtype=torch.float32).to("cuda")
-
-            controls = control_model(x=x_in, hint=h_in, timesteps=t_in, context=c_in)
-
-            output_names = []
-            for i in range(13):
-                output_names.append("out_"+ str(i))
-
-            dynamic_table = {'x_in' : {0 : 'bs', 2 : 'H', 3 : 'W'}, 
-                                'h_in' : {0 : 'bs', 2 : '8H', 3 : '8W'}, 
-                                't_in' : {0 : 'bs'},
-                                'c_in' : {0 : 'bs'}}
-
-            for i in range(13):
-                dynamic_table[output_names[i]] = {0 : "bs"}
-
-            torch.onnx.export(control_model,               
-                                (x_in, h_in, t_in, c_in),  
-                                "./sd_control_test.onnx",   
-                                export_params=True,
-                                opset_version=16,
-                                do_constant_folding=True,
-                                keep_initializers_as_inputs=True,
-                                input_names = ['x_in', "h_in", "t_in", "c_in"], 
-                                output_names = output_names, 
-                                dynamic_axes = dynamic_table)
-
-            os.system("trtexec --onnx=sd_control_test.onnx --saveEngine=sd_control_fp16.engine --fp16 --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
-
-        with open("./sd_control_fp16.engine", 'rb') as f:
-            engine_str = f.read()
-
-        control_engine = trt.Runtime(self.trt_logger).deserialize_cuda_engine(engine_str)
-        control_context = control_engine.create_execution_context()
-
-        control_context.set_binding_shape(0, (1, 4, H // 8, W // 8))
-        control_context.set_binding_shape(1, (1, 3, H, W))
-        control_context.set_binding_shape(2, (1,))
-        control_context.set_binding_shape(3, (1, 77, 768))
-        self.model.control_context = control_context
-
-        print("finished")
+            # 初始化 engine
+            self.model.cond_stage_model.clip_engine = self.load_engine('clip')
+            self.model.controlnet_engine = self.load_engine('control_net')
+            self.model.unet_engine = self.load_engine('unet')
+            self.model.vae_engine = self.load_engine('vae')
 
     def load_engine(self, engine_name):
         # 加载 cond_stage_model : clip
         if(engine_name == 'clip'):
-            engine_path = 'clip.engine'
+            engine_path = '/home/player/ControlNet/engine/clip_dynamic.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'control_net'):
-            engine_path = 'controlnet.engine'
+            engine_path = '/home/player/ControlNet/engine/controlnet_dynamic.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'unet'):
-            engine_path = 'unet.engine'
+            engine_path = '/home/player/ControlNet/engine/unet_5.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'vae'):
-            engine_path = 'vae.engine'
+            engine_path = '/home/player/ControlNet/engine/vae.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
 
@@ -158,32 +129,45 @@ class hackathon():
         for i in range(nInput):
             # print(engine.input_tensor[i]['name']+' : '+str(engine.input_tensor[i]['shape']))
             # print('input data shape : ' + str(input_datas[i].shape))
-            data = input_datas[i].cpu().reshape(-1)
-            inputHost = np.ascontiguousarray(data)
-            inputDevice = cudart.cudaMalloc(inputHost.nbytes)[1]
+            # data = input_datas[i].cpu().reshape(-1)
+            # inputHost = np.ascontiguousarray(data)
+            # inputDevice = cudart.cudaMalloc(inputHost.nbytes)[1]
+            # engine.context.set_tensor_address(engine.input_tensor[i]['name'], inputDevice)
+            # cudart.cudaMemcpy(inputDevice, inputHost.ctypes.data, inputHost.nbytes, cudart.cudaMemcpyKind.cudaMemcpyHostToDevice)
+            # inputDevice_list.append(inputDevice)
+            data = input_datas[i].reshape(-1)
+            inputDevice = data.data_ptr()
             engine.context.set_tensor_address(engine.input_tensor[i]['name'], inputDevice)
-            cudart.cudaMemcpy(inputDevice, inputHost.ctypes.data, inputHost.nbytes, cudart.cudaMemcpyKind.cudaMemcpyHostToDevice)
             inputDevice_list.append(inputDevice)
+            
         # 为输出分配地址并保存地址信息
         outputDevice_list = []
+        outputs = []
         for tensor in engine.output_tensor:
-            outputHost = np.empty(tensor['shape'], trt.nptype(tensor['dtype']))
-            outputDevice = cudart.cudaMalloc(outputHost.nbytes)[1] 
+            # outputHost = np.empty(tensor['shape'], trt.nptype(tensor['dtype']))
+            # print(tensor['shape'])
+            # print(tensor['dtype'])
+            # print(torch_dtype[tensor['dtype']])
+            output = torch.zeros(tuple(tensor['shape']), dtype=torch_dtype[tensor['dtype']], device='cuda')
+            outputDevice = output.reshape(-1).data_ptr()
+            # outputDevice = cudart.cudaMalloc(outputHost.nbytes)[1] 
             engine.context.set_tensor_address(tensor['name'], outputDevice)
             outputDevice_list.append(outputDevice)
+            outputs.append(output)
 
         engine.context.execute_async_v3(0)
 
         # 将输出拷贝出来
-        outputs = []
-        for i in range(nOutput):
-            outputDevice = outputDevice_list[i]
-            outputHost = np.empty(engine.output_tensor[i]['shape'], trt.nptype(engine.output_tensor[i]['dtype']))
-            cudart.cudaMemcpy(outputHost.ctypes.data, outputDevice, outputHost.nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost)
-            outputs.append(outputHost)
-            cudart.cudaFree(outputDevice)
-        for i in range(nInput):
-            cudart.cudaFree(inputDevice_list[i])
+        # outputs = []
+        # for i in range(nOutput):
+        #     outputDevice = outputDevice_list[i]
+        #     # outputHost = np.empty(engine.output_tensor[i]['shape'], trt.nptype(engine.output_tensor[i]['dtype']))
+        #     # cudart.cudaMemcpy(outputHost.ctypes.data, outputDevice, outputHost.nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost)
+        #     # outputs.append(outputHost)
+        #     outputs.append(torch.cuda.memory_allocated().from_address(outputDevice))
+        #     cudart.cudaFree(outputDevice)
+        # for i in range(nInput):
+        #     cudart.cudaFree(inputDevice_list[i])
 
         return outputs
 

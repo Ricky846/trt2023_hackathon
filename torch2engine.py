@@ -5,7 +5,7 @@ import torch
 import torch.onnx 
 from torch import nn 
 
-from ControlNet.canny2image_TRT_copy import hackathon
+from canny2image_TRT import hackathon
 
 import inspect
 import os

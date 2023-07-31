@@ -830,12 +830,12 @@ class LatentDiffusion(DDPM):
             z = rearrange(z, 'b h w c -> b c h w').contiguous()
 
         z = 1. / self.scale_factor * z
-        # input_list = [z]
-        # engine_outputs = self.run_engine(self.vae_engine, input_list)
+        input_list = [z]
+        engine_outputs = self.run_engine(self.vae_engine, input_list)
         # vae 网络输入   
-        z = self.first_stage_model.decode(z)  
-        # engine_outputs = torch.tensor(engine_outputs[0]).cuda()
-        return z
+        # z = self.first_stage_model.decode(z)  
+        engine_outputs = torch.tensor(engine_outputs[0]).cuda()
+        return engine_outputs
 
     @torch.no_grad()
     def encode_first_stage(self, x):
