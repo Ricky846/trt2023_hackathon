@@ -129,17 +129,17 @@ class FrozenCLIPEmbedder(AbstractEncoder):
         # print(tokens.shape) # torch.Size([1, 77])
         # print(tokens.dtype) # torch.int64
         # print(type(tokens))
-        input_tensor_list = [tokens]
-        engine_outputs = self.run_engine(self.clip_engine, input_tensor_list)
-        z_engine = engine_outputs[0]
-        # outputs = self.transformer(input_ids=tokens, output_hidden_states=self.layer=="hidden")
-        # if self.layer == "last":
-        #     z = outputs.last_hidden_state
-        # elif self.layer == "pooled":
-        #     z = outputs.pooler_output[:, None, :]
-        # else:
-        #     z = outputs.hidden_states[self.layer_idx]
-        return z_engine
+        # input_tensor_list = [tokens]
+        # engine_outputs = self.run_engine(self.clip_engine, input_tensor_list)
+        # z_engine = engine_outputs[0]
+        outputs = self.transformer(input_ids=tokens, output_hidden_states=self.layer=="hidden")
+        if self.layer == "last":
+            z = outputs.last_hidden_state
+        elif self.layer == "pooled":
+            z = outputs.pooler_output[:, None, :]
+        else:
+            z = outputs.hidden_states[self.layer_idx]
+        return z
 
     def encode(self, text):
         return self(text)

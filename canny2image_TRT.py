@@ -55,10 +55,10 @@ class hackathon():
         # self.model.decode_first_stage.run_engine = self.run_engine
 
         # 初始化 engine
-        self.model.cond_stage_model.clip_engine = self.load_engine('clip')
+        # self.model.cond_stage_model.clip_engine = self.load_engine('clip')
         self.model.controlnet_engine = self.load_engine('control_net')
         self.model.unet_engine = self.load_engine('unet')
-        self.model.vae_engine = self.load_engine('vae')
+        # self.model.vae_engine = self.load_engine('vae')
 
     def load_engine(self, engine_name):
         # 加载 cond_stage_model : clip
