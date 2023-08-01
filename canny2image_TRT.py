@@ -39,43 +39,43 @@ class hackathon():
         os.system("sed -i 's/use_checkpoint: True/use_checkpoint: False/g' '/home/player/ControlNet/models/cldm_v15.yaml'")
 
         self.apply_canny = CannyDetector()
-        self.model = create_model('./models/cldm_v15.yaml').cpu()
-        self.model.load_state_dict(load_state_dict('./models/control_sd15_canny.pth', location='cuda'))
+        self.model = create_model('/home/player/ControlNet/models/cldm_v15.yaml').cpu()
+        self.model.load_state_dict(load_state_dict('/home/player/ControlNet/models/control_sd15_canny.pth', location='cuda'))
         self.model = self.model.cuda()
         self.ddim_sampler = DDIMSampler(self.model)
         
-        if(os.path.isfile("clip.engine") and os.path.isfile("controlnet.engine") and os.path.isfile("unet.engine") and os.path.isfile("vae.engine")):
-            # trt 初始化
-            self.trt_logger = trt.Logger(trt.Logger.WARNING)
-            # 加载plugin
-            trt.init_libnvinfer_plugins(self.trt_logger, '')
+        # if(os.path.isfile("/home/player/ControlNet/models/engine/clip.engine") and os.path.isfile("/home/player/ControlNet/models/engine/controlnet.engine") and os.path.isfile("/home/player/ControlNet/models/engine/unet.engine") and os.path.isfile("/home/player/ControlNet/models/engine/vae.engine")):
+        # trt 初始化
+        self.trt_logger = trt.Logger(trt.Logger.WARNING)
+        # 加载plugin
+        trt.init_libnvinfer_plugins(self.trt_logger, '')
 
-            self.model.cond_stage_model.run_engine = self.run_engine
-            self.model.run_engine = self.run_engine
-            # self.model.decode_first_stage.run_engine = self.run_engine
+        self.model.cond_stage_model.run_engine = self.run_engine
+        self.model.run_engine = self.run_engine
+        # self.model.decode_first_stage.run_engine = self.run_engine
 
-            # 初始化 engine
-            self.model.cond_stage_model.clip_engine = self.load_engine('clip')
-            self.model.controlnet_engine = self.load_engine('control_net')
-            self.model.unet_engine = self.load_engine('unet')
-            self.model.vae_engine = self.load_engine('vae')
+        # 初始化 engine
+        self.model.cond_stage_model.clip_engine = self.load_engine('clip')
+        self.model.controlnet_engine = self.load_engine('control_net')
+        self.model.unet_engine = self.load_engine('unet')
+        self.model.vae_engine = self.load_engine('vae')
 
     def load_engine(self, engine_name):
         # 加载 cond_stage_model : clip
         if(engine_name == 'clip'):
-            engine_path = '/home/player/ControlNet/engine/clip_dynamic.engine'
+            engine_path = '/home/player/ControlNet/models/engine/clip.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'control_net'):
-            engine_path = '/home/player/ControlNet/engine/controlnet_dynamic.engine'
+            engine_path = '/home/player/ControlNet/models/engine/controlnet.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'unet'):
-            engine_path = '/home/player/ControlNet/engine/unet_5.engine'
+            engine_path = '/home/player/ControlNet/models/engine/unet.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'vae'):
-            engine_path = '/home/player/ControlNet/engine/vae.engine'
+            engine_path = '/home/player/ControlNet/models/engine/vae.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
 
