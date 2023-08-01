@@ -64,8 +64,8 @@ model = hk.model
 vae = model.first_stage_model
 vae.forward = vae.decode
 
-vae_onnx_path = "/home/player/ControlNet/models/onnx/vae.onnx"
-vae_engine_path = "/home/player/ControlNet/models/engine/vae.engine"
+vae_onnx_path = "vae.onnx"
+vae_engine_path = "vae.engine"
 
 vae_input = torch.zeros((1,4,32,48), dtype=torch.float32, device='cuda')
 torch.onnx.export(vae, vae_input, vae_onnx_path, 

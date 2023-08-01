@@ -64,8 +64,8 @@ hk.initialize()
 model = hk.model
 unet = model.model.diffusion_model
 
-unet_onnx_path = "/home/player/ControlNet/models/onnx/unet.onnx"
-unet_engine_path = "/home/player/ControlNet/models/engine/unet.engine"
+unet_onnx_path = "unet.onnx"
+unet_engine_path = "unet.engine"
 
 diffusion_model_input1 = torch.zeros((1,4,32,48), dtype=torch.float32, device='cuda')
 diffusion_model_input2 = torch.zeros(1, dtype=torch.int32, device='cuda')
@@ -128,4 +128,4 @@ torch.onnx.export(unet,
 #     f.write(unet_engine)
 #     print("generating file done!") 
 
-os.system("trtexec --onnx=/home/player/ControlNet/models/onnx/unet.onnx --saveEngine=/home/player/ControlNet/models/engine/unet.engine --fp16 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw --optShapes=sample:1x4x32x48,timestep:1,encoder_hidden_states:1x77x768,control_input_1:1x320x32x48,control_input_2:1x320x32x48,control_input_3:1x320x32x48,control_input_4:1x320x16x24,control_input_5:1x640x16x24,control_input_6:1x640x16x24,control_input_7:1x640x8x12,control_input_8:1x1280x8x12,control_input_9:1x1280x8x12,control_input_10:1x1280x4x6,control_input_11:1x1280x4x6,control_input_12:1x1280x4x6,control_input_13:1x1280x4x6")
+os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw --optShapes=sample:1x4x32x48,timestep:1,encoder_hidden_states:1x77x768,control_input_1:1x320x32x48,control_input_2:1x320x32x48,control_input_3:1x320x32x48,control_input_4:1x320x16x24,control_input_5:1x640x16x24,control_input_6:1x640x16x24,control_input_7:1x640x8x12,control_input_8:1x1280x8x12,control_input_9:1x1280x8x12,control_input_10:1x1280x4x6,control_input_11:1x1280x4x6,control_input_12:1x1280x4x6,control_input_13:1x1280x4x6")

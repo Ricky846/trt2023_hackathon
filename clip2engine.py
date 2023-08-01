@@ -58,19 +58,14 @@ def create_engine(onnx_model):
 
     return engine
 
-    # 保存engine文件
-    with open(engine_model_path, mode='wb') as f: 
-        f.write(engine) 
-        print("generating file done!") 
-
 
 hk = hackathon()
 hk.initialize()
 model = hk.model
 clip = model.cond_stage_model.transformer
 
-clip_onnx_path = "/home/player/ControlNet/models/onnx/clip.onnx"
-clip_engine_path = "/home/player/ControlNet/models/engine/clip.engine"
+clip_onnx_path = "clip.onnx"
+clip_engine_path = "clip.engine"
 
 input_names=['input_ids']
 output_names=['text_embeddings', 'pooler_output']

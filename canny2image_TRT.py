@@ -63,19 +63,19 @@ class hackathon():
     def load_engine(self, engine_name):
         # 加载 cond_stage_model : clip
         if(engine_name == 'clip'):
-            engine_path = '/home/player/ControlNet/models/engine/clip.engine'
+            engine_path = 'clip.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'control_net'):
-            engine_path = '/home/player/ControlNet/models/engine/controlnet.engine'
+            engine_path = 'controlnet.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'unet'):
-            engine_path = '/home/player/ControlNet/models/engine/unet.engine'
+            engine_path = 'unet.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
         elif(engine_name == 'vae'):
-            engine_path = '/home/player/ControlNet/models/engine/vae.engine'
+            engine_path = 'vae.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
 
