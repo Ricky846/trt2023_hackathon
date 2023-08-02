@@ -108,4 +108,4 @@ torch.onnx.export(controlnet,
 #     f.write(controlnet_engine)
 #     print("generating file done!") 
 
-os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
+os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
