@@ -4,6 +4,8 @@ import onnx
 import tensorrt as trt 
 import os
 
+import onnx_graphsurgeon as gs
+
 from canny2image_torch import hackathon
 
 def create_engine(onnx_model):
@@ -107,5 +109,12 @@ torch.onnx.export(controlnet,
 # with open(controlnet_engine_path, mode='wb') as f: 
 #     f.write(controlnet_engine)
 #     print("generating file done!") 
+
+controlnet_onnx = onnx.load(controlnet_onnx_path)
+controlnet_graph = gs.import_onnx(controlnet_onnx)
+controlnet_graph = controlnet_graph.fold_constants()
+controlnet_graph = controlnet_graph.cleanup()
+
+onnx.save(gs.export_onnx(controlnet_graph), controlnet_onnx_path)
 
 os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
