@@ -100,16 +100,6 @@ torch.onnx.export(controlnet,
                     output_names = output_names, 
                     dynamic_axes = dynamic_table)
 
-# if not os.path.isfile(clip_onnx_path):
-
-
-# if not os.path.isfile(clip_engine_path):
-# controlnet_onnx = onnx.load(controlnet_onnx_path)
-# controlnet_engine = create_engine(controlnet_onnx)
-# with open(controlnet_engine_path, mode='wb') as f: 
-#     f.write(controlnet_engine)
-#     print("generating file done!") 
-
 controlnet_onnx = onnx.load(controlnet_onnx_path)
 controlnet_graph = gs.import_onnx(controlnet_onnx)
 controlnet_graph = controlnet_graph.fold_constants()
@@ -117,6 +107,73 @@ controlnet_graph = controlnet_graph.cleanup()
 
 onnx.save(gs.export_onnx(controlnet_graph), controlnet_onnx_path)
 
+# 用 polygraphy 对网络进行常量折叠
+os.system('polygraphy surgeon sanitize controlnet.onnx \
+            --fold-constant \
+            -o controlnet.onnx \
+            > result-surgeon-controlnet.log')
 
+net_onnx = onnx.load(controlnet_onnx_path)
+graph = gs.import_onnx(net_onnx)
+
+print('node numbers original', len(graph.nodes))
+
+# 删除无用的乘法节点
+del_node_name = []
+for node in graph.nodes:
+    if node.op == 'Mul':
+        if len(node.inputs) == 2:
+            for input in node.inputs:
+                if isinstance(input, gs.Constant):
+                    if input.values.shape == ():
+                        if input.values == 1:
+                            print(node.name)
+                            del_node_name.append(node.name)
+
+for node in graph.nodes:
+    for name in del_node_name:
+        if node.name == name:
+            index = node.o().inputs.index(node.outputs[0])  # find the index of output tensor of this node in the next node
+            node.inputs
+            node.o().inputs[index] = node.inputs[0]  # replace the input tensor of the next node as the input tensor of this node
+            node.outputs = []  # a optional step: clean the output tensor of this node, so that this node can be recognized as uselesss node
+            index = del_node_name.index(name)
+            del_node_name.pop(index)
+            break
+        else:
+            continue
+
+graph.cleanup().toposort()  # the Add node will be removed during graph clean
+
+# 删除无用的除法节点
+del_node_name = []
+for node in graph.nodes:
+    if node.op == 'Div':
+        if len(node.inputs) == 2:
+            for input in node.inputs:
+                if isinstance(input, gs.Constant):
+                    if input.values.shape == ():
+                        if input.values == 1:
+                            print(node.name)
+                            del_node_name.append(node.name)
+
+for node in graph.nodes:
+    for name in del_node_name:
+        if node.name == name:
+            index = node.o().inputs.index(node.outputs[0])  # find the index of output tensor of this node in the next node
+            node.inputs
+            node.o().inputs[index] = node.inputs[0]  # replace the input tensor of the next node as the input tensor of this node
+            node.outputs = []  # a optional step: clean the output tensor of this node, so that this node can be recognized as uselesss node
+            index = del_node_name.index(name)
+            del_node_name.pop(index)
+            break
+        else:
+            continue
+
+graph.cleanup().toposort()  # the Add node will be removed during graph clean
+
+print('node numbers optimized', len(graph.nodes))
+
+onnx.save(gs.export_onnx(graph), controlnet_onnx_path)
 
 os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")

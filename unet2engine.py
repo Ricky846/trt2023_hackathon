@@ -135,6 +135,6 @@ os.system('polygraphy surgeon sanitize unet_temp.onnx \
             --fold-constant \
             -o unet.onnx \
             --save-external-data \
-            > result-surgeon.log')
+            > result-surgeon-unet.log')
 
 os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw --optShapes=sample:1x4x32x48,timestep:1,encoder_hidden_states:1x77x768,control_input_1:1x320x32x48,control_input_2:1x320x32x48,control_input_3:1x320x32x48,control_input_4:1x320x16x24,control_input_5:1x640x16x24,control_input_6:1x640x16x24,control_input_7:1x640x8x12,control_input_8:1x1280x8x12,control_input_9:1x1280x8x12,control_input_10:1x1280x4x6,control_input_11:1x1280x4x6,control_input_12:1x1280x4x6,control_input_13:1x1280x4x6")
