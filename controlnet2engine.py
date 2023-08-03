@@ -93,7 +93,7 @@ torch.onnx.export(controlnet,
                     (x_in, h_in, t_in, c_in),  
                     controlnet_onnx_path, 
                     export_params=True,
-                    opset_version=16,
+                    opset_version=17,
                     do_constant_folding=True,
                     keep_initializers_as_inputs=True,
                     input_names = ['x_in', "h_in", "t_in", "c_in"], 
@@ -116,5 +116,7 @@ controlnet_graph = controlnet_graph.fold_constants()
 controlnet_graph = controlnet_graph.cleanup()
 
 onnx.save(gs.export_onnx(controlnet_graph), controlnet_onnx_path)
+
+
 
 os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
