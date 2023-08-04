@@ -98,7 +98,8 @@ torch.onnx.export(controlnet,
                     keep_initializers_as_inputs=True,
                     input_names = ['x_in', "h_in", "t_in", "c_in"], 
                     output_names = output_names, 
-                    dynamic_axes = dynamic_table)
+                    # dynamic_axes = dynamic_table
+                    )
 
 controlnet_onnx = onnx.load(controlnet_onnx_path)
 controlnet_graph = gs.import_onnx(controlnet_onnx)
@@ -176,4 +177,8 @@ print('node numbers optimized', len(graph.nodes))
 
 onnx.save(gs.export_onnx(graph), controlnet_onnx_path)
 
-os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
+# # 动态维度导出
+# os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
+
+# 静态维度导出
+os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw")

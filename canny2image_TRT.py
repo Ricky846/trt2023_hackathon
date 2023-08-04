@@ -109,7 +109,7 @@ class hackathon():
     
     def run_engine(self, engine, input_datas):
         nInput = len(engine.input_tensor)
-        nOutput = len(engine.output_tensor)
+        # nOutput = len(engine.output_tensor)
         # 将输入拷贝到gpu
         # 通过shape判断输入
         # for tensor in engine.input_tensor:
@@ -125,7 +125,7 @@ class hackathon():
         #         else:
         #             continue
         # 不进行判断，直接按顺序将输入拷贝到cuda
-        inputDevice_list = []
+        # inputDevice_list = []
         for i in range(nInput):
             # print(engine.input_tensor[i]['name']+' : '+str(engine.input_tensor[i]['shape']))
             # print('input data shape : ' + str(input_datas[i].shape))
@@ -138,10 +138,10 @@ class hackathon():
             data = input_datas[i].reshape(-1)
             inputDevice = data.data_ptr()
             engine.context.set_tensor_address(engine.input_tensor[i]['name'], inputDevice)
-            inputDevice_list.append(inputDevice)
+            # inputDevice_list.append(inputDevice)
             
         # 为输出分配地址并保存地址信息
-        outputDevice_list = []
+        # outputDevice_list = []
         outputs = []
         for tensor in engine.output_tensor:
             # outputHost = np.empty(tensor['shape'], trt.nptype(tensor['dtype']))
@@ -152,7 +152,7 @@ class hackathon():
             outputDevice = output.reshape(-1).data_ptr()
             # outputDevice = cudart.cudaMalloc(outputHost.nbytes)[1] 
             engine.context.set_tensor_address(tensor['name'], outputDevice)
-            outputDevice_list.append(outputDevice)
+            # outputDevice_list.append(outputDevice)
             outputs.append(output)
 
         engine.context.execute_async_v3(0)
