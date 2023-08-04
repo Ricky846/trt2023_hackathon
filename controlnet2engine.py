@@ -101,12 +101,12 @@ torch.onnx.export(controlnet,
                     # dynamic_axes = dynamic_table
                     )
 
-controlnet_onnx = onnx.load(controlnet_onnx_path)
-controlnet_graph = gs.import_onnx(controlnet_onnx)
-controlnet_graph = controlnet_graph.fold_constants()
-controlnet_graph = controlnet_graph.cleanup()
+# controlnet_onnx = onnx.load(controlnet_onnx_path)
+# controlnet_graph = gs.import_onnx(controlnet_onnx)
+# controlnet_graph = controlnet_graph.fold_constants()
+# controlnet_graph = controlnet_graph.cleanup()
 
-onnx.save(gs.export_onnx(controlnet_graph), controlnet_onnx_path)
+# onnx.save(gs.export_onnx(controlnet_graph), controlnet_onnx_path)
 
 # 用 polygraphy 对网络进行常量折叠
 os.system('polygraphy surgeon sanitize controlnet.onnx \
@@ -114,12 +114,12 @@ os.system('polygraphy surgeon sanitize controlnet.onnx \
             -o controlnet.onnx \
             > result-surgeon-controlnet.log')
 
-net_onnx = onnx.load(controlnet_onnx_path)
-graph = gs.import_onnx(net_onnx)
+# net_onnx = onnx.load(controlnet_onnx_path)
+# graph = gs.import_onnx(net_onnx)
 
-print('node numbers original', len(graph.nodes))
+# print('node numbers original', len(graph.nodes))
 
-# 删除无用的乘法节点
+# # 删除无用的乘法节点
 # del_node_name = []
 # for node in graph.nodes:
 #     if node.op == 'Mul':
@@ -146,7 +146,7 @@ print('node numbers original', len(graph.nodes))
 
 # graph.cleanup().toposort()  # the Add node will be removed during graph clean
 
-# 删除无用的除法节点
+# # 删除无用的除法节点
 # del_node_name = []
 # for node in graph.nodes:
 #     if node.op == 'Div':
@@ -171,14 +171,14 @@ print('node numbers original', len(graph.nodes))
 #         else:
 #             continue
 
-graph.cleanup().toposort()  # the Add node will be removed during graph clean
+# graph.cleanup().toposort()  # the Add node will be removed during graph clean
 
-print('node numbers optimized', len(graph.nodes))
+# print('node numbers optimized', len(graph.nodes))
 
-onnx.save(gs.export_onnx(graph), controlnet_onnx_path)
+# onnx.save(gs.export_onnx(graph), controlnet_onnx_path)
 
-# # 动态维度导出
-# os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
+# # # 动态维度导出
+# # os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:1x4x32x48,h_in:1x3x256x384,t_in:1,c_in:1x77x768")
 
 # 静态维度导出
 os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw")
