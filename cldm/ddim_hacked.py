@@ -144,8 +144,8 @@ class DDIMSampler(object):
         time_range = reversed(range(0,timesteps)) if ddim_use_original_steps else np.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
 
-        # 修改迭代次数
-        total_steps = 15
+        # # 修改迭代次数
+        # total_steps = 15
 
         print(f"Running DDIM Sampling with {total_steps} timesteps")
 
