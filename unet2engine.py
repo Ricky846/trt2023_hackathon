@@ -106,22 +106,22 @@ for i in range(1,13):
     dynamic_table[control_input_names[i]] = {0 : 'bs', 2 : 'dim_2_' + str(i+1), 3: 'dim_3_' + str(i+1)}
 
 # print(dynamic_table)
-
-torch.onnx.export(unet,               
-                    (diffusion_model_input1, diffusion_model_input2, diffusion_model_input3, 
-                    [diffusion_model_input4_1, diffusion_model_input4_2, diffusion_model_input4_3, 
-                    diffusion_model_input4_4, diffusion_model_input4_5, diffusion_model_input4_6, 
-                    diffusion_model_input4_7, 
-                    diffusion_model_input4_8, diffusion_model_input4_9, 
-                    diffusion_model_input4_10, diffusion_model_input4_11, diffusion_model_input4_12, diffusion_model_input4_13]),
-                    unet_onnx_path,
-                    export_params=True,
-                    opset_version=17,
-                    do_constant_folding=True,
-                    # keep_initializers_as_inputs=True,
-                    input_names = input_names, 
-                    # dynamic_axes = dynamic_table
-                    )
+with torch.inference_mode(), torch.autocast("cuda"):
+    torch.onnx.export(unet,               
+                        (diffusion_model_input1, diffusion_model_input2, diffusion_model_input3, 
+                        [diffusion_model_input4_1, diffusion_model_input4_2, diffusion_model_input4_3, 
+                        diffusion_model_input4_4, diffusion_model_input4_5, diffusion_model_input4_6, 
+                        diffusion_model_input4_7, 
+                        diffusion_model_input4_8, diffusion_model_input4_9, 
+                        diffusion_model_input4_10, diffusion_model_input4_11, diffusion_model_input4_12, diffusion_model_input4_13]),
+                        unet_onnx_path,
+                        export_params=True,
+                        opset_version=17,
+                        do_constant_folding=True,
+                        # keep_initializers_as_inputs=True,
+                        input_names = input_names, 
+                        # dynamic_axes = dynamic_table
+                        )
 
 # net_onnx = onnx.load(unet_onnx_path)
 # net_graph = gs.import_onnx(net_onnx)
