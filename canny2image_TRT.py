@@ -27,11 +27,21 @@ torch_dtype = {
     trt.DataType.BOOL: torch.bool
 }
 
-class model_engine():
+class model_engine_v1():
     def __init__(self, context, input_tensor, output_tensor):
         self.context = context
         self.input_tensor = input_tensor
         self.output_tensor = output_tensor
+
+class model_engine_v2():
+    def __init__(self, context, graphExe, stream, bufferH, bufferD, nInput, nIO):
+        self.context = context
+        self.graphExe = graphExe
+        self.stream = stream
+        self.bufferH = bufferH
+        self.bufferD = bufferD
+        self.nInput = nInput
+        self.nIO = nIO
 
 class hackathon():
 
@@ -50,17 +60,18 @@ class hackathon():
         # 加载plugin
         trt.init_libnvinfer_plugins(self.trt_logger, '')
 
-        self.model.cond_stage_model.run_engine = self.run_engine
-        self.model.run_engine = self.run_engine
+        self.model.cond_stage_model.run_engine_v2 = self.run_engine_v2
+        self.model.run_engine_v1 = self.run_engine_v1
+        self.model.run_engine_v2 = self.run_engine_v2
         # self.model.decode_first_stage.run_engine = self.run_engine
 
         # 初始化 engine
         # self.model.cond_stage_model.clip_engine = self.load_engine('clip')
-        self.model.controlnet_engine = self.load_engine('control_net')
-        self.model.unet_engine = self.load_engine('unet')
-        self.model.vae_engine = self.load_engine('vae')
+        self.model.controlnet_engine = self.load_engine_v2('control_net')
+        self.model.unet_engine = self.load_engine_v1('unet')
+        self.model.vae_engine = self.load_engine_v2('vae')
 
-    def load_engine(self, engine_name):
+    def load_engine_v1(self, engine_name):
         # 加载 cond_stage_model : clip
         if(engine_name == 'clip'):
             engine_path = 'clip.engine'
@@ -104,10 +115,107 @@ class hackathon():
             output_dtype = engine.get_tensor_dtype(output_name)
             output_tensor.append({'name' : output_name, 'shape' : output_shape, 'dtype' : output_dtype})
 
-        engine = model_engine(context, input_tensor, output_tensor)
+        engine = model_engine_v1(context, input_tensor, output_tensor)
         return engine
     
-    def run_engine(self, engine, input_datas):
+    def load_engine_v2(self, engine_name):
+        # 加载 cond_stage_model : clip
+        if(engine_name == 'clip'):
+            engine_path = 'clip.engine'
+            with open(engine_path, mode='rb') as f: 
+                                engine_data = f.read()
+        elif(engine_name == 'control_net'):
+            engine_path = 'controlnet.engine'
+            with open(engine_path, mode='rb') as f: 
+                                engine_data = f.read()
+        elif(engine_name == 'unet'):
+            engine_path = 'unet.engine'
+            with open(engine_path, mode='rb') as f: 
+                                engine_data = f.read()
+        elif(engine_name == 'vae'):
+            engine_path = 'vae.engine'
+            with open(engine_path, mode='rb') as f: 
+                                engine_data = f.read()
+
+        # 创建 engine
+        engine = trt.Runtime(self.trt_logger).deserialize_cuda_engine(engine_data)
+        context = engine.create_execution_context()
+        _, stream = cudart.cudaStreamCreate()
+
+        nIO = engine.num_io_tensors
+        lTensorName = [engine.get_tensor_name(i) for i in range(nIO)]
+        nInput = [engine.get_tensor_mode(lTensorName[i]) for i in range(nIO)].count(trt.TensorIOMode.INPUT)
+        #nOutput = [engine.get_tensor_mode(lTensorName[i]) for i in range(nIO)].count(trt.TensorIOMode.OUTPUT)
+
+        context = engine.create_execution_context()
+        # get a CUDA stream for CUDA graph and inference
+        _, stream = cudart.cudaStreamCreate()
+
+        for i in range(nInput):
+            context.set_input_shape(lTensorName[i], engine.get_tensor_shape(lTensorName[i]))
+
+        bufferH = []
+        for i in range(nIO):
+            data = torch.zeros(tuple(context.get_tensor_shape(lTensorName[i])), dtype=torch_dtype[engine.get_tensor_dtype(lTensorName[i])], device='cuda')
+            bufferH.append(data)
+        
+        bufferD = []
+        for i in range(nIO):
+            bufferD.append(cudart.cudaMalloc(bufferH[i].element_size() * bufferH[i].numel())[1])
+        
+        # do inference before CUDA graph capture
+        for i in range(nInput):
+            # cudart.cudaMemcpyAsync(bufferD[i], bufferH[i].ctypes.data, bufferH[i].nbytes, cudart.cudaMemcpyKind.cudaMemcpyHostToDevice, stream)
+            cudart.cudaMemcpyAsync(bufferD[i], bufferH[i].data_ptr(), bufferH[i].element_size() * bufferH[i].numel(), cudart.cudaMemcpyKind.cudaMemcpyDeviceToDevice, stream)
+
+        for i in range(nIO):
+            context.set_tensor_address(lTensorName[i], int(bufferD[i]))
+        context.execute_async_v3(stream)
+        for i in range(nInput, nIO):
+            # cudart.cudaMemcpyAsync(bufferH[i].ctypes.data, bufferD[i], bufferH[i].nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost, stream)
+            cudart.cudaMemcpyAsync(bufferH[i].data_ptr(), bufferD[i], bufferH[i].element_size() * bufferH[i].numel(), cudart.cudaMemcpyKind.cudaMemcpyDeviceToDevice, stream)
+
+        # CUDA Graph capture
+        cudart.cudaStreamBeginCapture(stream, cudart.cudaStreamCaptureMode.cudaStreamCaptureModeGlobal)
+        for i in range(nInput):
+            # cudart.cudaMemcpyAsync(bufferD[i], bufferH[i].ctypes.data, bufferH[i].nbytes, cudart.cudaMemcpyKind.cudaMemcpyHostToDevice, stream)
+            cudart.cudaMemcpyAsync(bufferD[i], bufferH[i].data_ptr(), bufferH[i].element_size() * bufferH[i].numel(), cudart.cudaMemcpyKind.cudaMemcpyDeviceToDevice, stream)
+        context.execute_async_v3(stream)
+        for i in range(nInput, nIO):
+            # cudart.cudaMemcpyAsync(bufferH[i].ctypes.data, bufferD[i], bufferH[i].nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost, stream)
+            cudart.cudaMemcpyAsync(bufferH[i].data_ptr(), bufferD[i], bufferH[i].element_size() * bufferH[i].numel(), cudart.cudaMemcpyKind.cudaMemcpyDeviceToDevice, stream)
+
+        #cudart.cudaStreamSynchronize(stream)  # no need to synchronize within the CUDA graph capture
+        _, graph = cudart.cudaStreamEndCapture(stream)
+        _, graphExe = cudart.cudaGraphInstantiate(graph, 0)
+
+        # for i in range(nInput, nIO):
+        #     bufferH[i].zero_() 
+
+        # do inference with CUDA graph
+        # cudart.cudaGraphLaunch(graphExe, stream)
+        # cudart.cudaStreamSynchronize(stream)
+
+        # for step in range(20):
+        #     for i in range(nInput):
+        #         # print(bufferH[i].data_ptr())
+        #         bufferH[i][:] = step + 1
+        #         # print(bufferH[i].data_ptr())
+            
+        #     for i in range(nInput,nIO):
+        #         bufferH[i] *= 0  # set output buffer as 0 to see the real output of inference
+            
+        #     start = datetime.datetime.now().timestamp()
+        #     cudart.cudaGraphLaunch(graphExe, stream)
+        #     cudart.cudaStreamSynchronize(stream)
+        #     end = datetime.datetime.now().timestamp()
+            # print("time cost is: ", (end-start)*1000)
+
+        engine = model_engine_v2(context, graphExe, stream, bufferH, bufferD, nInput, nIO)
+
+        return(engine)
+
+    def run_engine_v1(self, engine, input_datas):
         nInput = len(engine.input_tensor)
         # nOutput = len(engine.output_tensor)
         # 将输入拷贝到gpu
@@ -170,10 +278,29 @@ class hackathon():
         #     cudart.cudaFree(inputDevice_list[i])
 
         return outputs
+        
+    def run_engine_v2(self, engine, input_datas):
+        # for i in range(engine.nIO):
+        #     engine.bufferH[i].zero_() 
+
+        for i in range(len(input_datas)):
+            engine.bufferH[i][:] = input_datas[i]
+        
+        # for i in range(engine.nInput, engine.nIO):
+        #     engine.bufferH[i].zero_() 
+
+        cudart.cudaGraphLaunch(engine.graphExe, engine.stream)
+        cudart.cudaStreamSynchronize(engine.stream)
+        
+        # for i in range(engine.nInput, engine.nIO):
+        #     # cudart.cudaMemcpyAsync(bufferH[i].ctypes.data, bufferD[i], bufferH[i].nbytes, cudart.cudaMemcpyKind.cudaMemcpyDeviceToHost, stream)
+        #     cudart.cudaMemcpyAsync(engine.bufferH[i].data_ptr(), engine.bufferD[i], engine.bufferH[i].element_size() * engine.bufferH[i].numel(), cudart.cudaMemcpyKind.cudaMemcpyDefault, engine.stream)
+
+        return engine.bufferH[engine.nInput:engine.nIO]
 
     def process(self, input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps, guess_mode, strength, scale, seed, eta, low_threshold, high_threshold):
         
-        ddim_steps = 12
+        ddim_steps = 10
         with torch.no_grad():
             # 对图片进行预处理
             img = resize_image(HWC3(input_image), image_resolution)

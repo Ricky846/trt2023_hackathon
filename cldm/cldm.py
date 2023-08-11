@@ -356,7 +356,7 @@ class ControlLDM(LatentDiffusion):
             # name: onnx::MatMul_3
             # type: float32[1,77,768]
             input_tensor_list = [x_noisy, torch.cat(cond['c_concat'], 1), t, cond_txt]
-            engine_outputs = self.run_engine(self.controlnet_engine, input_tensor_list)
+            engine_outputs = self.run_engine_v2(self.controlnet_engine, input_tensor_list)
             # engine_outputs = [torch.tensor(arr).cuda() for arr in engine_outputs]
             # control = self.control_model(x=x_noisy, hint=torch.cat(cond['c_concat'], 1), timesteps=t, context=cond_txt)
             # control = [c * scale for c, scale in zip(control, self.control_scales)]
@@ -369,7 +369,7 @@ class ControlLDM(LatentDiffusion):
             #     # print(tensor.shape)
             #     input_tensor_list.append(tensor)
             input_tensor_list = input_tensor_list + engine_outputs
-            engine_outputs = self.run_engine(self.unet_engine, input_tensor_list)
+            engine_outputs = self.run_engine_v1(self.unet_engine, input_tensor_list)
             # print(engine_outputs[0])
             engine_outputs = engine_outputs[0]
             # eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=engine_outputs, only_mid_control=self.only_mid_control)

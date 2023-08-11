@@ -831,7 +831,7 @@ class LatentDiffusion(DDPM):
 
         z = 1. / self.scale_factor * z
         input_list = [z]
-        engine_outputs = self.run_engine(self.vae_engine, input_list)
+        engine_outputs = self.run_engine_v2(self.vae_engine, input_list)
         engine_outputs = engine_outputs[0]
         # vae 网络输入   
         # z = self.first_stage_model.decode(z)          
