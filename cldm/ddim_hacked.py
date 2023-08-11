@@ -202,7 +202,7 @@ class DDIMSampler(object):
 
             input_tensor_list = [x_in, t_in, c_in]
             input_tensor_list = input_tensor_list + engine_outputs
-            engine_outputs = self.model.run_engine_v1(self.model.unet_engine, input_tensor_list)
+            engine_outputs = self.model.run_engine_v2(self.model.unet_engine, input_tensor_list)
             engine_outputs = engine_outputs[0]
             # 将张量拆分为两个
             sub_tensors = torch.split(engine_outputs, 1, dim=0)

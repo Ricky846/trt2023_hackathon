@@ -68,7 +68,7 @@ class hackathon():
         # 初始化 engine
         # self.model.cond_stage_model.clip_engine = self.load_engine('clip')
         self.model.controlnet_engine = self.load_engine_v2('control_net')
-        self.model.unet_engine = self.load_engine_v1('unet')
+        self.model.unet_engine = self.load_engine_v2('unet')
         self.model.vae_engine = self.load_engine_v2('vae')
 
     def load_engine_v1(self, engine_name):
