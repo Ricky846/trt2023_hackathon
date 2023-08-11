@@ -144,8 +144,8 @@ class DDIMSampler(object):
         time_range = reversed(range(0,timesteps)) if ddim_use_original_steps else np.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
 
-        # # 修改迭代次数
-        # total_steps = 15
+        # 修改迭代次数
+        # total_steps = 20
 
         print(f"Running DDIM Sampling with {total_steps} timesteps")
 
@@ -191,9 +191,29 @@ class DDIMSampler(object):
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
             model_output = self.model.apply_model(x, t, c)
         else:
-            model_t = self.model.apply_model(x, t, c)
-            model_uncond = self.model.apply_model(x, t, unconditional_conditioning)
-            model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
+            # 测试 bach = 2
+            t = t.to(torch.int32)
+            x_in = torch.cat((x, x), dim=0)
+            h_in = torch.cat((c['c_concat'][0], unconditional_conditioning['c_concat'][0]), dim=0)
+            t_in = torch.cat((t, t), dim=0)
+            c_in = torch.cat((c['c_crossattn'][0], unconditional_conditioning['c_crossattn'][0]), dim=0)
+            input_tensor_list = [x_in, h_in, t_in, c_in]
+            engine_outputs = self.model.run_engine_v2(self.model.controlnet_engine, input_tensor_list)
+
+            input_tensor_list = [x_in, t_in, c_in]
+            input_tensor_list = input_tensor_list + engine_outputs
+            engine_outputs = self.model.run_engine_v1(self.model.unet_engine, input_tensor_list)
+            engine_outputs = engine_outputs[0]
+            # 将张量拆分为两个
+            sub_tensors = torch.split(engine_outputs, 1, dim=0)
+            model_t_2 = sub_tensors[0]
+            model_uncond_2 = sub_tensors[1]
+            model_output = model_uncond_2 + unconditional_guidance_scale * (model_t_2 - model_uncond_2)
+            # 原始代码
+            # model_t = self.model.apply_model(x, t, c)
+            # model_uncond = self.model.apply_model(x, t, unconditional_conditioning)
+            # model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
+
 
         if self.model.parameterization == "v":
             e_t = self.model.predict_eps_from_z_and_v(x, t, model_output)

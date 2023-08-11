@@ -65,7 +65,7 @@ hk.initialize()
 model = hk.model
 unet = model.model.diffusion_model
 
-unet_onnx_path = "unet_temp.onnx"
+unet_onnx_path = "unet.onnx"
 # unet_engine_path = "unet.engine"
 
 diffusion_model_input1 = torch.zeros((1,4,32,48), dtype=torch.float32, device='cuda')
@@ -100,9 +100,11 @@ for i in range(1,14):
 
 # print(input_names)
 
-dynamic_table = {'sample' : {0 : 'bs', 2 : 'H', 3 : 'W'}, 'encoder_hidden_states' : {0 : 'bs'}}
+dynamic_table = {'sample' : {0 : 'bs', 2 : 'H', 3 : 'W'}, 
+                 'timestep' : {0 : 'bs'}, 
+                 'encoder_hidden_states' : {0 : 'bs'}}
 
-for i in range(1,13):
+for i in range(0,13):
     dynamic_table[control_input_names[i]] = {0 : 'bs', 2 : 'dim_2_' + str(i+1), 3: 'dim_3_' + str(i+1)}
 
 # print(dynamic_table)
@@ -132,14 +134,13 @@ with torch.inference_mode(), torch.autocast("cuda"):
 # onnx.save(net_onnx, "unet.onnx", save_as_external_data=True)
 
 # 使用 polygraphy 工具对网络的节点进行折叠
-os.system('polygraphy surgeon sanitize unet_temp.onnx \
+os.system('polygraphy surgeon sanitize unet.onnx \
             --fold-constant \
             -o unet.onnx \
-            --save-external-data \
             > result-surgeon-unet.log')
 
 # 动态维度导出
-os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw --optShapes=sample:1x4x32x48,timestep:1,encoder_hidden_states:1x77x768,control_input_1:1x320x32x48,control_input_2:1x320x32x48,control_input_3:1x320x32x48,control_input_4:1x320x16x24,control_input_5:1x640x16x24,control_input_6:1x640x16x24,control_input_7:1x640x8x12,control_input_8:1x1280x8x12,control_input_9:1x1280x8x12,control_input_10:1x1280x4x6,control_input_11:1x1280x4x6,control_input_12:1x1280x4x6,control_input_13:1x1280x4x6")
+os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --builderOptimizationLevel=3 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw --optShapes=sample:2x4x32x48,timestep:2,encoder_hidden_states:2x77x768,control_input_1:2x320x32x48,control_input_2:2x320x32x48,control_input_3:2x320x32x48,control_input_4:2x320x16x24,control_input_5:2x640x16x24,control_input_6:2x640x16x24,control_input_7:2x640x8x12,control_input_8:2x1280x8x12,control_input_9:2x1280x8x12,control_input_10:2x1280x4x6,control_input_11:2x1280x4x6,control_input_12:2x1280x4x6,control_input_13:2x1280x4x6")
 
 # 静态维度导出
 # os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw")
