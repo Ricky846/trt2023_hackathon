@@ -65,21 +65,35 @@ vae = model.first_stage_model
 vae.forward = vae.decode
 
 vae_onnx_path = "vae.onnx"
-vae_engine_path = "vae.engine"
+# vae_engine_path = "vae.engine"
 
 vae_input = torch.zeros((1,4,32,48), dtype=torch.float32, device='cuda')
+dynamic_table = {'v_in': {0 : 'bs', 2 : 'H', 3 : 'W'}}
+
 torch.onnx.export(vae, vae_input, vae_onnx_path, 
                     input_names = ['v_in'], 
                     export_params=True,
                     opset_version=17,
-                    do_constant_folding=True,)
+                    do_constant_folding=True,
+                    dynamic_axes=dynamic_table
+                    )
 
 # if not os.path.isfile(clip_engine_path):
-vae_onnx = onnx.load(vae_onnx_path)
-vae_engine = create_engine(vae_onnx)
-with open(vae_engine_path, mode='wb') as f: 
-    f.write(vae_engine)
-    print("generating file done!") 
+# vae_onnx = onnx.load(vae_onnx_path)
+# vae_engine = create_engine(vae_onnx)
+# with open(vae_engine_path, mode='wb') as f: 
+#     f.write(vae_engine)
+#     print("generating file done!") 
 
+os.system('polygraphy surgeon sanitize vae.onnx \
+            --fold-constant \
+            -o vae.onnx \
+            > result-surgeon-vae.log')
 
+#动态维度导出
+os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --fp16 --inputIOFormats=fp32:chw --optShapes=v_in:1x4x32x48")
 
+#静态维度导出
+# os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --fp16 --inputIOFormats=fp32:chw")
+
+print("generating file done!")

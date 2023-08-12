@@ -300,7 +300,7 @@ class hackathon():
 
     def process(self, input_image, prompt, a_prompt, n_prompt, num_samples, image_resolution, ddim_steps, guess_mode, strength, scale, seed, eta, low_threshold, high_threshold):
         
-        ddim_steps = 8
+        ddim_steps = 10
         with torch.no_grad():
             # 对图片进行预处理
             img = resize_image(HWC3(input_image), image_resolution)
