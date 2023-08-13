@@ -122,7 +122,7 @@ with torch.inference_mode(), torch.autocast("cuda"):
                         do_constant_folding=True,
                         # keep_initializers_as_inputs=True,
                         input_names = input_names, 
-                        # dynamic_axes = dynamic_table
+                        dynamic_axes = dynamic_table
                         )
 
 # net_onnx = onnx.load(unet_onnx_path)
@@ -140,7 +140,7 @@ os.system('polygraphy surgeon sanitize unet.onnx \
             > result-surgeon-unet.log')
 
 # 动态维度导出
-# os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --builderOptimizationLevel=3 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw --optShapes=sample:2x4x32x48,timestep:2,encoder_hidden_states:2x77x768,control_input_1:2x320x32x48,control_input_2:2x320x32x48,control_input_3:2x320x32x48,control_input_4:2x320x16x24,control_input_5:2x640x16x24,control_input_6:2x640x16x24,control_input_7:2x640x8x12,control_input_8:2x1280x8x12,control_input_9:2x1280x8x12,control_input_10:2x1280x4x6,control_input_11:2x1280x4x6,control_input_12:2x1280x4x6,control_input_13:2x1280x4x6")
+os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw --optShapes=sample:2x4x32x48,timestep:2,encoder_hidden_states:2x77x768,control_input_1:2x320x32x48,control_input_2:2x320x32x48,control_input_3:2x320x32x48,control_input_4:2x320x16x24,control_input_5:2x640x16x24,control_input_6:2x640x16x24,control_input_7:2x640x8x12,control_input_8:2x1280x8x12,control_input_9:2x1280x8x12,control_input_10:2x1280x4x6,control_input_11:2x1280x4x6,control_input_12:2x1280x4x6,control_input_13:2x1280x4x6")
 
 # 静态维度导出
-os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw")
+# os.system("trtexec --onnx=unet.onnx --saveEngine=unet.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw,int32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw,fp32:chw")
