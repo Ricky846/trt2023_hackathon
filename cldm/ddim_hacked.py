@@ -198,11 +198,11 @@ class DDIMSampler(object):
             t_in = torch.cat((t.to(torch.int32), t.to(torch.int32)), dim=0)
             c_in = torch.cat((c['c_crossattn'][0], unconditional_conditioning['c_crossattn'][0]), dim=0)
             input_tensor_list = [x_in, h_in, t_in, c_in]
-            engine_outputs = self.model.run_engine_v1(self.model.controlnet_engine, input_tensor_list)
+            engine_outputs = self.model.run_engine_v2(self.model.controlnet_engine, input_tensor_list)
 
             input_tensor_list = [x_in, t_in, c_in]
             input_tensor_list = input_tensor_list + engine_outputs
-            engine_outputs = self.model.run_engine_v1(self.model.unet_engine, input_tensor_list)[0]
+            engine_outputs = self.model.run_engine_v2(self.model.unet_engine, input_tensor_list)[0]
             # engine_outputs = engine_outputs
             # 将张量拆分为两个
             sub_tensors = torch.split(engine_outputs, 1, dim=0)
