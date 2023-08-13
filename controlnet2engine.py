@@ -181,4 +181,4 @@ os.system('polygraphy surgeon sanitize controlnet.onnx \
 # os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:2x4x32x48,h_in:2x3x256x384,t_in:2,c_in:2x77x768")
 
 # 静态维度导出
-os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw")
+os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw")
