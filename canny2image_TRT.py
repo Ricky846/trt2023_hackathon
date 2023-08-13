@@ -18,6 +18,7 @@ import tensorrt as trt
 from cuda import cudart
 
 import os
+import datetime
 
 torch_dtype = {
     trt.DataType.FLOAT: torch.float32,
@@ -34,7 +35,7 @@ class model_engine_v1():
         self.output_tensor = output_tensor
 
 class model_engine_v2():
-    def __init__(self, context, graphExe, stream, bufferH, bufferD, nInput, nIO):
+    def __init__(self, context, graphExe, stream, bufferH, bufferD, nInput, nIO, input_tensor, output_tensor):
         self.context = context
         self.graphExe = graphExe
         self.stream = stream
@@ -42,6 +43,8 @@ class model_engine_v2():
         self.bufferD = bufferD
         self.nInput = nInput
         self.nIO = nIO
+        self.input_tensor = input_tensor
+        self.output_tensor = output_tensor
 
 class hackathon():
 
@@ -63,10 +66,10 @@ class hackathon():
         self.model.cond_stage_model.run_engine_v2 = self.run_engine_v2
         self.model.run_engine_v1 = self.run_engine_v1
         self.model.run_engine_v2 = self.run_engine_v2
-        # self.model.decode_first_stage.run_engine = self.run_engine
+        # self.model.decode_first_stage.run_engine_v1 = self.run_engine_v1
 
         # 初始化 engine
-        # self.model.cond_stage_model.clip_engine = self.load_engine('clip')
+        self.model.cond_stage_model.clip_engine = self.load_engine_v2('clip')
         self.model.controlnet_engine = self.load_engine_v2('control_net')
         self.model.unet_engine = self.load_engine_v2('unet')
         self.model.vae_engine = self.load_engine_v2('vae')
@@ -148,6 +151,22 @@ class hackathon():
         #nOutput = [engine.get_tensor_mode(lTensorName[i]) for i in range(nIO)].count(trt.TensorIOMode.OUTPUT)
 
         context = engine.create_execution_context()
+
+        input_tensor = []
+        output_tensor = []
+        # 绑定输入的shape,并将输入的tensor的信息保存
+        for i in range(nInput):
+            input_name = lTensorName[i]
+            input_shape = engine.get_tensor_shape(lTensorName[i])
+            input_dtype = engine.get_tensor_dtype(lTensorName[i])
+            input_tensor.append({'name' : input_name, 'shape' : input_shape, 'dtype' : input_dtype})
+        # 将输出的tensor的信息保存
+        for i in range(nInput, nIO):
+            output_name = lTensorName[i]
+            output_shape = engine.get_tensor_shape(output_name)
+            output_dtype = engine.get_tensor_dtype(output_name)
+            output_tensor.append({'name' : output_name, 'shape' : output_shape, 'dtype' : output_dtype})
+        
         # get a CUDA stream for CUDA graph and inference
         _, stream = cudart.cudaStreamCreate()
 
@@ -209,9 +228,9 @@ class hackathon():
         #     cudart.cudaGraphLaunch(graphExe, stream)
         #     cudart.cudaStreamSynchronize(stream)
         #     end = datetime.datetime.now().timestamp()
-            # print("time cost is: ", (end-start)*1000)
+        #     print("time cost is: ", (end-start)*1000)
 
-        engine = model_engine_v2(context, graphExe, stream, bufferH, bufferD, nInput, nIO)
+        engine = model_engine_v2(context, graphExe, stream, bufferH, bufferD, nInput, nIO, input_tensor, output_tensor)
 
         return(engine)
 

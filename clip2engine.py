@@ -74,26 +74,35 @@ dynamic_axes = {
     'text_embeddings':[0,1],
     'pooler_output':[0]
 }
-clip_input = torch.zeros((1,77), dtype=torch.int64, device='cuda')
+clip_input = torch.zeros((1,77), dtype=torch.int32, device='cuda')
 
 # if not os.path.isfile(clip_onnx_path):
 torch.onnx.export( 
     clip, 
     clip_input, 
     clip_onnx_path,
-    opset_version=16, 
+    opset_version=17, 
     input_names=input_names, 
     output_names=output_names,
-    dynamic_axes=dynamic_axes,
+    # dynamic_axes=dynamic_axes,
     do_constant_folding=True,
 )
 
 # if not os.path.isfile(clip_engine_path):
-clip_onnx = onnx.load(clip_onnx_path)
-clip_engine = create_engine(clip_onnx)
-with open(clip_engine_path, mode='wb') as f: 
-    f.write(clip_engine)
-    print("generating file done!") 
+# clip_onnx = onnx.load(clip_onnx_path)
+# clip_engine = create_engine(clip_onnx)
+# with open(clip_engine_path, mode='wb') as f: 
+#     f.write(clip_engine)
+#     print("generating file done!") 
+
+os.system('polygraphy surgeon sanitize clip.onnx \
+            --fold-constant \
+            -o clip.onnx \
+            > result-surgeon-clip.log')
+
+#动态维度导出
+# os.system("trtexec --onnx=clip.onnx --saveEngine=clip.engine --inputIOFormats=int32:chw --optShapes=input_ids:1x77")
+os.system("trtexec --onnx=clip.onnx --saveEngine=clip.engine --inputIOFormats=int32:chw")
 
 
 

@@ -75,7 +75,7 @@ torch.onnx.export(vae, vae_input, vae_onnx_path,
                     export_params=True,
                     opset_version=17,
                     do_constant_folding=True,
-                    dynamic_axes=dynamic_table
+                    # dynamic_axes=dynamic_table
                     )
 
 # if not os.path.isfile(clip_engine_path):
@@ -91,9 +91,9 @@ os.system('polygraphy surgeon sanitize vae.onnx \
             > result-surgeon-vae.log')
 
 #动态维度导出
-os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --fp16 --inputIOFormats=fp32:chw --optShapes=v_in:1x4x32x48")
+# os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --fp16 --inputIOFormats=fp32:chw --optShapes=v_in:1x4x32x48")
 
 #静态维度导出
-# os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --fp16 --inputIOFormats=fp32:chw")
+os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --fp16 --inputIOFormats=fp32:chw")
 
 print("generating file done!")

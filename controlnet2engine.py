@@ -72,10 +72,10 @@ controlnet_engine_path = "controlnet.engine"
 H = 256
 W = 384
 
-x_in = torch.randn(1, 4, H//8, W //8, dtype=torch.float32).to("cuda")
-h_in = torch.randn(1, 3, H, W, dtype=torch.float32).to("cuda")
-t_in = torch.zeros(1, dtype=torch.int32).to("cuda")
-c_in = torch.randn(1, 77, 768, dtype=torch.float32).to("cuda")
+x_in = torch.randn(2, 4, H//8, W //8, dtype=torch.float32).to("cuda")
+h_in = torch.randn(2, 3, H, W, dtype=torch.float32).to("cuda")
+t_in = torch.zeros(2, dtype=torch.int32).to("cuda")
+c_in = torch.randn(2, 77, 768, dtype=torch.float32).to("cuda")
 
 output_names = []
 for i in range(13):
@@ -98,7 +98,7 @@ torch.onnx.export(controlnet,
                     keep_initializers_as_inputs=True,
                     input_names = ['x_in', "h_in", "t_in", "c_in"], 
                     output_names = output_names, 
-                    dynamic_axes = dynamic_table
+                    # dynamic_axes = dynamic_table
                     )
 
 # controlnet_onnx = onnx.load(controlnet_onnx_path)
@@ -178,7 +178,7 @@ os.system('polygraphy surgeon sanitize controlnet.onnx \
 # onnx.save(gs.export_onnx(graph), controlnet_onnx_path)
 
 # 动态维度导出
-os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:2x4x32x48,h_in:2x3x256x384,t_in:2,c_in:2x77x768")
+# os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw --optShapes=x_in:2x4x32x48,h_in:2x3x256x384,t_in:2,c_in:2x77x768")
 
 # 静态维度导出
-# os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw")
+os.system("trtexec --onnx=controlnet.onnx --saveEngine=controlnet.engine --fp16 --inputIOFormats=fp32:chw,fp32:chw,int32:chw,fp32:chw")

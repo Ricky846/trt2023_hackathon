@@ -129,8 +129,9 @@ class FrozenCLIPEmbedder(AbstractEncoder):
         # print(tokens.shape) # torch.Size([1, 77])
         # print(tokens.dtype) # torch.int64
         # print(type(tokens))
+        # tokens = tokens.to(torch.int32)
         # input_tensor_list = [tokens]
-        # engine_outputs = self.run_engine(self.clip_engine, input_tensor_list)
+        # engine_outputs = self.run_engine_v2(self.clip_engine, input_tensor_list)
         # z_engine = engine_outputs[0]
         outputs = self.transformer(input_ids=tokens, output_hidden_states=self.layer=="hidden")
         if self.layer == "last":

@@ -369,7 +369,7 @@ class ControlLDM(LatentDiffusion):
             #     # print(tensor.shape)
             #     input_tensor_list.append(tensor)
             input_tensor_list = input_tensor_list + engine_outputs
-            engine_outputs = self.run_engine_v1(self.unet_engine, input_tensor_list)
+            engine_outputs = self.run_engine_v2(self.unet_engine, input_tensor_list)
             # print(engine_outputs[0])
             engine_outputs = engine_outputs[0]
             # eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=engine_outputs, only_mid_control=self.only_mid_control)
