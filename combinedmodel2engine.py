@@ -11,7 +11,7 @@ import torch
 import torch.onnx 
 from torch import nn 
 
-from canny2image_TRT import hackathon
+from canny2image_torch import hackathon
 
 import inspect
 hk = hackathon()
