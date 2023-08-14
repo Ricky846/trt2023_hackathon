@@ -10,9 +10,10 @@ sed -i 's/use_checkpoint: True/use_checkpoint: False/g' "$config_file"
 
 # python3 clip2engine.py
 # wait
-python3 unet2engine.py
-wait
-python3 controlnet2engine.py
+# python3 unet2engine.py
+# wait
+# python3 controlnet2engine.py
+python3 combinedmodel2engine.py
 wait
 python3 vae2engine.py
 wait

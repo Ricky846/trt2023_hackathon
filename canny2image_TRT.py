@@ -70,8 +70,9 @@ class hackathon():
 
         # 初始化 engine
         # self.model.cond_stage_model.clip_engine = self.load_engine_v2('clip')
-        self.model.controlnet_engine = self.load_engine_v2('control_net')
-        self.model.unet_engine = self.load_engine_v2('unet')
+        # self.model.controlnet_engine = self.load_engine_v2('control_net')
+        # self.model.unet_engine = self.load_engine_v2('unet')
+        self.model.union_enigne = self.load_engine_v2('union')
         self.model.vae_engine = self.load_engine_v2('vae')
 
     def load_engine_v1(self, engine_name):
@@ -139,7 +140,10 @@ class hackathon():
             engine_path = 'vae.engine'
             with open(engine_path, mode='rb') as f: 
                                 engine_data = f.read()
-
+        elif(engine_name == 'union'):
+            engine_path = 'union_model_poly.engine'
+            with open(engine_path, mode='rb') as f: 
+                engine_data = f.read()
         # 创建 engine
         engine = trt.Runtime(self.trt_logger).deserialize_cuda_engine(engine_data)
         context = engine.create_execution_context()
