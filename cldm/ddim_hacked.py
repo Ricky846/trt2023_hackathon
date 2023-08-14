@@ -198,7 +198,7 @@ class DDIMSampler(object):
             t_in = torch.cat((t.to(torch.int32), t.to(torch.int32)), dim=0)
             c_in = torch.cat((c['c_crossattn'][0], unconditional_conditioning['c_crossattn'][0]), dim=0)
             input_tensor_list = [x_in, h_in, t_in, c_in]
-            engine_outputs = self.model.run_engine_v2(self.model.union_engine, input_tensor_list)
+            engine_outputs = self.model.run_engine_v2(self.model.union_engine, input_tensor_list)[0]
 
             # input_tensor_list = [x_in, t_in, c_in]
             # input_tensor_list = input_tensor_list + engine_outputs
