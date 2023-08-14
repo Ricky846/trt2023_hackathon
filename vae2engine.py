@@ -91,7 +91,7 @@ os.system('polygraphy surgeon sanitize vae.onnx \
             > result-surgeon-vae.log')
 
 #动态维度导出
-os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --builderOptimizationLevel=5 --fp16 --inputIOFormats=fp32:chw --optShapes=v_in:1x4x32x48")
+os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --fp16 --inputIOFormats=fp32:chw --optShapes=v_in:1x4x32x48")
 
 #静态维度导出
 # os.system("trtexec --onnx=vae.onnx --saveEngine=vae.engine --fp16 --builderOptimizationLevel=5 --inputIOFormats=fp32:chw")
